@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order Sheet Automation</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+      --soft-blue: #eff6ff;
+      --soft-green: #ecfdf5;
+      --soft-amber: #fffbeb;
+      --shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: var(--primary);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    .status-pill {
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: #fff;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 24px 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(340px, 0.55fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .panel-head p {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 5px 0 0;
+    }
+
+    .panel-body { padding: 22px; }
+
+    .upload {
+      border: 1.5px dashed #b7c4d8;
+      background: #fbfdff;
+      border-radius: 8px;
+      padding: 34px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease;
+      min-height: 190px;
+      display: grid;
+      place-items: center;
+    }
+
+    .upload:hover,
+    .upload.dragover {
+      border-color: var(--primary);
+      background: var(--soft-blue);
+    }
+
+    .upload input { display: none; }
+
+    .upload-icon {
+      width: 46px;
+      height: 46px;
+      margin: 0 auto 13px;
+      border-radius: 8px;
+      background: var(--soft-blue);
+      display: grid;
+      place-items: center;
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .upload strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .upload span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button, .button {
+      appearance: none;
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 15px;
+      min-height: 42px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    button:active, .button:active { transform: translateY(1px); }
+
+    .primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .primary:hover { background: var(--primary-dark); }
+
+    .secondary {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 86px;
+      background: #fff;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat .value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+
+    .success { background: var(--soft-green); }
+    .warning { background: var(--soft-amber); }
+
+    .message {
+      margin-top: 16px;
+      border-radius: 8px;
+      padding: 12px 13px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: #fff;
+    }
+
+    .message.error {
+      border-color: rgba(220, 38, 38, 0.25);
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .message.ok {
+      border-color: rgba(22, 163, 74, 0.25);
+      background: var(--soft-green);
+      color: #166534;
+    }
+
+    .message.warn {
+      border-color: rgba(245, 158, 11, 0.3);
+      background: var(--soft-amber);
+      color: #92400e;
+    }
+
+    .table-wrap {
+      margin-top: 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 390px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 920px;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #dbeafe;
+      color: #0f172a;
+      text-align: left;
+      font-size: 12px;
+      padding: 10px 9px;
+      border-bottom: 1px solid #bfd4f8;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 9px;
+      border-bottom: 1px solid var(--border);
+      color: #1f2937;
+      white-space: nowrap;
+    }
+
+    .rules {
+      display: grid;
+      gap: 10px;
+    }
+
+    .rule {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      display: grid;
+      gap: 4px;
+    }
+
+    .rule strong { font-size: 13px; }
+    .rule span { color: var(--muted); font-size: 12px; }
+
+    .review-list {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: #92400e;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .status-pill { white-space: normal; }
+    }
+
+    @media (max-width: 560px) {
+      main { padding: 18px 14px 28px; }
+      .topbar { padding: 14px; }
+      .panel-body, .panel-head { padding-left: 16px; padding-right: 16px; }
+      .stats { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; }
+      button, .button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">OS</div>
+        <div>
+          <h1>Order Sheet Automation</h1>
+        </div>
+      </div>
+      <div class="status-pill" id="runDate">Ready</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Amazon Report To Excel</h2>
+          <p>Upload the Amazon tab-separated order report and generate the finished 21-column Excel sheet.</p>
+        </div>
+        <div class="panel-body">
+          <label class="upload" id="dropZone">
+            <input id="fileInput" type="file" accept=".txt,.tsv,text/plain">
+            <div>
+              <div class="upload-icon">UP</div>
+              <strong id="uploadTitle">Choose or drop Amazon order file</strong>
+              <span id="uploadHint">Accepted file: .txt tab-separated Amazon report</span>
+            </div>
+          </label>
+
+          <div class="actions">
+            <button class="primary" id="processBtn" disabled>Generate Excel</button>
+            <a class="button secondary" id="downloadBtn" href="#" download hidden>Download Excel</a>
+            <button class="secondary" id="resetBtn" disabled>Reset</button>
+          </div>
+
+          <div class="message" id="message">No file uploaded yet.</div>
+
+          <div class="table-wrap" id="previewWrap" hidden>
+            <table>
+              <thead id="previewHead"></thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Processing Summary</h2>
+          <p>Live counts after the uploaded report is converted.</p>
+        </div>
+        <div class="panel-body">
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Input Rows</div>
+              <div class="value" id="inputRows">0</div>
+            </div>
+            <div class="stat success">
+              <div class="label">Final Rows</div>
+              <div class="value" id="finalRows">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Shipped</div>
+              <div class="value" id="shippedRows">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Pending</div>
+              <div class="value" id="pendingRows">0</div>
+            </div>
+            <div class="stat">
+              <div class="label">Removed</div>
+              <div class="value" id="removedRows">0</div>
+            </div>
+            <div class="stat warning">
+              <div class="label">Review</div>
+              <div class="value" id="reviewRows">0</div>
+            </div>
+          </div>
+
+          <div class="message warn" id="reviewBox" hidden>
+            Unknown possible combo SKUs found:
+            <ul class="review-list" id="reviewList"></ul>
+          </div>
+
+          <div class="rules" style="margin-top:18px">
+            <div class="rule">
+              <strong>Filter</strong>
+              <span>Keep only Shipped and Pending orders.</span>
+            </div>
+            <div class="rule">
+              <strong>SKU Cleanup</strong>
+              <span>Remove NTPL-, FBA-, MFN-, then apply fixed corrections.</span>
+            </div>
+            <div class="rule">
+              <strong>Combo Split</strong>
+              <span>Only the 3 approved combo SKUs are split into two rows.</span>
+            </div>
+            <div class="rule">
+              <strong>Excel Output</strong>
+              <span>Bold colored header, frozen first row, adjusted column widths.</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const REQUIRED_COLUMNS = [
+      "order-status", "purchase-date", "sku", "product-name", "ship-postal-code",
+      "ship-city", "ship-state", "ship-country", "item-price", "quantity"
+    ];
+
+    const PREFIXES = ["NTPL-", "FBA-", "MFN-"];
+    const SKU_CORRECTIONS = {
+      "XT-J0WB-EP74": "NESTA00114",
+      "G9-R6IY-RAHH": "NESTA0055",
+      "3": "NESTA002"
+    };
+
+    const COMBOS = {
+      "NESTA0012+NESTA0011": [
+        { sku: "NESTA0012", price: "1499" },
+        { sku: "NESTA0011", price: "1499" }
+      ],
+      "NESTA0059+NESTA0060": [
+        { sku: "NESTA0059", price: "1499" },
+        { sku: "NESTA0060", price: "1499" }
+      ],
+      "NESTA0068-NESTA0084": [
+        { sku: "NESTA0068", price: "749" },
+        { sku: "NESTA0084", price: "1099" }
+      ]
+    };
+
+    const OUTPUT_HEADERS = [
+      "Order Status", "Purchase Date", "SKU", "Product Name", "", "", "",
+      "Ship Postal Code", "Ship City", "Ship State", "Ship Country", "",
+      "Item Price", "Quantity", "", "", "", "", "", "", ""
+    ];
+
+    const state = {
+      file: null,
+      sourceRows: [],
+      outputRows: [],
+      stats: null,
+      downloadUrl: null
+    };
+
+    const fileInput = document.getElementById("fileInput");
+    const dropZone = document.getElementById("dropZone");
+    const processBtn = document.getElementById("processBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const message = document.getElementById("message");
+
+    document.getElementById("runDate").textContent = `Run date: ${todayISO()} | ${monthName(new Date())}`;
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length) loadFile(fileInput.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(eventName => {
+      dropZone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+      });
+    });
+
+    dropZone.addEventListener("drop", event => {
+      const file = event.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+
+    processBtn.addEventListener("click", processCurrentFile);
+    resetBtn.addEventListener("click", resetApp);
+
+    function loadFile(file) {
+      resetDownload();
+      state.file = file;
+      document.getElementById("uploadTitle").textContent = file.name;
+      document.getElementById("uploadHint").textContent = `${formatBytes(file.size)} selected`;
+      processBtn.disabled = false;
+      resetBtn.disabled = false;
+      setMessage("File loaded. Click Generate Excel to process it.", "");
+    }
+
+    async function processCurrentFile() {
+      try {
+        if (!state.file) return;
+        resetDownload();
+        const text = await state.file.text();
+        const parsed = parseTSV(text);
+        validateColumns(parsed.headers);
+        const result = transformRows(parsed.headers, parsed.rows);
+        state.sourceRows = parsed.rows;
+        state.outputRows = result.rows;
+        state.stats = result.stats;
+
+        updateStats(result.stats);
+        renderPreview(result.rows);
+        renderReview(result.stats.reviewSkus);
+
+        const xlsxBlob = buildXLSX(OUTPUT_HEADERS, result.rows, "Processed Orders");
+        const baseName = state.file.name.replace(/\.[^.]+$/, "");
+        const outputName = `${baseName}_processed_${todayISO()}.xlsx`;
+        state.downloadUrl = URL.createObjectURL(xlsxBlob);
+        downloadBtn.href = state.downloadUrl;
+        downloadBtn.download = outputName;
+        downloadBtn.hidden = false;
+
+        setMessage(`Excel ready: ${result.rows.length} final rows generated.`, "ok");
+      } catch (error) {
+        console.error(error);
+        setMessage(error.message || "Something went wrong while processing the file.", "error");
+      }
+    }
+
+    function parseTSV(text) {
+      const normalized = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const lines = normalized.split("\n").filter(line => line.length > 0);
+      if (!lines.length) throw new Error("The uploaded file is empty.");
+      const headers = lines[0].split("\t").map(value => value.trim());
+      const rows = lines.slice(1).map(line => {
+        const values = line.split("\t");
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] === undefined ? "" : values[index];
+        });
+        return row;
+      });
+      return { headers, rows };
+    }
+
+    function validateColumns(headers) {
+      const missing = REQUIRED_COLUMNS.filter(column => !headers.includes(column));
+      if (missing.length) {
+        throw new Error(`Missing required column(s): ${missing.join(", ")}`);
+      }
+    }
+
+    function transformRows(headers, rows) {
+      const filtered = rows
+        .filter(row => ["Pending", "Shipped"].includes(clean(row["order-status"])))
+        .sort((a, b) => clean(b["order-status"]).localeCompare(clean(a["order-status"])));
+
+      const today = todayISO();
+      const month = monthName(new Date());
+      const output = [];
+      const reviewSkus = new Set();
+      let shipped = 0;
+      let pending = 0;
+
+      filtered.forEach(row => {
+        const status = clean(row["order-status"]);
+        if (status === "Shipped") shipped += 1;
+        if (status === "Pending") pending += 1;
+
+        const cleanedSku = cleanupSku(row["sku"]);
+        const base = buildOutputRow(row, cleanedSku, row["item-price"], today, month);
+
+        if (COMBOS[cleanedSku]) {
+          const pair = COMBOS[cleanedSku];
+          output.push(withSkuAndPrice(base, pair[0].sku, pair[0].price));
+          output.push(withSkuAndPrice(base, pair[1].sku, pair[1].price));
+        } else {
+          output.push(base);
+          if (looksLikeUnknownCombo(cleanedSku)) reviewSkus.add(cleanedSku);
+        }
+      });
+
+      return {
+        rows: output,
+        stats: {
+          input: rows.length,
+          final: output.length,
+          shipped,
+          pending,
+          removed: rows.length - filtered.length,
+          review: reviewSkus.size,
+          reviewSkus: Array.from(reviewSkus)
+        }
+      };
+    }
+
+    function buildOutputRow(row, sku, price, today, month) {
+      return [
+        clean(row["order-status"]),
+        cleanDate(row["purchase-date"]),
+        sku,
+        clean(row["product-name"]),
+        "Amazon FBA",
+        "",
+        "",
+        clean(row["ship-postal-code"]),
+        clean(row["ship-city"]),
+        clean(row["ship-state"]),
+        clean(row["ship-country"]) === "IN" ? "INDIA" : clean(row["ship-country"]),
+        "",
+        clean(price),
+        clean(row["quantity"]),
+        "",
+        "PREPAID",
+        "0",
+        today,
+        month,
+        "0",
+        "SHIPPED"
+      ];
+    }
+
+    function cleanupSku(value) {
+      let sku = clean(value);
+      PREFIXES.forEach(prefix => {
+        if (sku.startsWith(prefix)) sku = sku.slice(prefix.length).trimStart();
+      });
+      return SKU_CORRECTIONS[sku] || sku;
+    }
+
+    function cleanDate(value) {
+      return clean(value).split("T")[0];
+    }
+
+    function withSkuAndPrice(row, sku, price) {
+      const copy = row.slice();
+      copy[2] = sku;
+      copy[12] = price;
+      return copy;
+    }
+
+    function looksLikeUnknownCombo(sku) {
+      return /NESTA\d+\s*[+-]\s*NESTA\d+/i.test(sku) && !COMBOS[sku];
+    }
+
+    function renderPreview(rows) {
+      const previewRows = rows.slice(0, 80);
+      document.getElementById("previewHead").innerHTML =
+        `<tr>${OUTPUT_HEADERS.map((header, index) => `<th>${escapeHTML(header || columnLetter(index + 1))}</th>`).join("")}</tr>`;
+      document.getElementById("previewBody").innerHTML = previewRows
+        .map(row => `<tr>${row.map(cell => `<td>${escapeHTML(cell)}</td>`).join("")}</tr>`)
+        .join("");
+      document.getElementById("previewWrap").hidden = rows.length === 0;
+    }
+
+    function renderReview(skus) {
+      const box = document.getElementById("reviewBox");
+      const list = document.getElementById("reviewList");
+      if (!skus.length) {
+        box.hidden = true;
+        list.innerHTML = "";
+        return;
+      }
+      list.innerHTML = skus.map(sku => `<li>${escapeHTML(sku)}</li>`).join("");
+      box.hidden = false;
+    }
+
+    function updateStats(stats) {
+      document.getElementById("inputRows").textContent = stats.input;
+      document.getElementById("finalRows").textContent = stats.final;
+      document.getElementById("shippedRows").textContent = stats.shipped;
+      document.getElementById("pendingRows").textContent = stats.pending;
+      document.getElementById("removedRows").textContent = stats.removed;
+      document.getElementById("reviewRows").textContent = stats.review;
+    }
+
+    function resetApp() {
+      resetDownload();
+      state.file = null;
+      state.sourceRows = [];
+      state.outputRows = [];
+      state.stats = null;
+      fileInput.value = "";
+      processBtn.disabled = true;
+      resetBtn.disabled = true;
+      downloadBtn.hidden = true;
+      document.getElementById("uploadTitle").textContent = "Choose or drop Amazon order file";
+      document.getElementById("uploadHint").textContent = "Accepted file: .txt tab-separated Amazon report";
+      document.getElementById("previewWrap").hidden = true;
+      document.getElementById("previewHead").innerHTML = "";
+      document.getElementById("previewBody").innerHTML = "";
+      renderReview([]);
+      updateStats({ input: 0, final: 0, shipped: 0, pending: 0, removed: 0, review: 0 });
+      setMessage("No file uploaded yet.", "");
+    }
+
+    function resetDownload() {
+      if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl);
+      state.downloadUrl = null;
+      downloadBtn.hidden = true;
+      downloadBtn.href = "#";
+    }
+
+    function setMessage(text, type) {
+      message.textContent = text;
+      message.className = `message${type ? ` ${type}` : ""}`;
+    }
+
+    function clean(value) {
+      return value === null || value === undefined ? "" : String(value).trim();
+    }
+
+    function todayISO() {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function monthName(date) {
+      return date.toLocaleString("en-US", { month: "long" });
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function escapeHTML(value) {
+      return clean(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeXML(value) {
+      return clean(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function columnLetter(number) {
+      let text = "";
+      while (number > 0) {
+        const mod = (number - 1) % 26;
+        text = String.fromCharCode(65 + mod) + text;
+        number = Math.floor((number - mod) / 26);
+      }
+      return text;
+    }
+
+    function buildXLSX(headers, rows, sheetName) {
+      const widths = headers.map((header, index) => {
+        const values = rows.map(row => clean(row[index]));
+        const max = Math.max(clean(header).length || 10, ...values.map(value => value.length));
+        return Math.min(Math.max(max + 2, 10), 46);
+      });
+
+      const sheetRows = [headers, ...rows].map((row, rowIndex) => {
+        const cells = row.map((value, colIndex) => {
+          const ref = `${columnLetter(colIndex + 1)}${rowIndex + 1}`;
+          const style = rowIndex === 0 ? ' s="1"' : '';
+          return `<c r="${ref}" t="inlineStr"${style}><is><t>${escapeXML(value)}</t></is></c>`;
+        }).join("");
+        return `<row r="${rowIndex + 1}">${cells}</row>`;
+      }).join("");
+
+      const cols = widths.map((width, index) =>
+        `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`
+      ).join("");
+
+      const sheetXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView></sheetViews>
+  <cols>${cols}</cols>
+  <sheetData>${sheetRows}</sheetData>
+</worksheet>`;
+
+      const files = {
+        "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+        "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+        "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="${escapeXML(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+        "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+        "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF111827"/><name val="Calibri"/></font></fonts>
+  <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDBEAFE"/><bgColor indexed="64"/></patternFill></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`,
+        "xl/worksheets/sheet1.xml": sheetXML
+      };
+
+      return new Blob([zipStore(files)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+    }
+
+    function zipStore(files) {
+      const encoder = new TextEncoder();
+      const fileEntries = [];
+      let offset = 0;
+      const localParts = [];
+
+      Object.entries(files).forEach(([name, content]) => {
+        const nameBytes = encoder.encode(name);
+        const data = encoder.encode(content);
+        const crc = crc32(data);
+        const localHeader = concatBytes(
+          u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+          u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), nameBytes, data
+        );
+        localParts.push(localHeader);
+        fileEntries.push({ nameBytes, crc, size: data.length, offset });
+        offset += localHeader.length;
+      });
+
+      const centralParts = fileEntries.map(entry =>
+        concatBytes(
+          u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+          u32(entry.crc), u32(entry.size), u32(entry.size),
+          u16(entry.nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(entry.offset), entry.nameBytes
+        )
+      );
+
+      const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+      const centralOffset = offset;
+      const end = concatBytes(
+        u32(0x06054b50), u16(0), u16(0), u16(fileEntries.length), u16(fileEntries.length),
+        u32(centralSize), u32(centralOffset), u16(0)
+      );
+
+      return concatBytes(...localParts, ...centralParts, end);
+    }
+
+    function concatBytes(...parts) {
+      const total = parts.reduce((sum, part) => sum + part.length, 0);
+      const output = new Uint8Array(total);
+      let offset = 0;
+      parts.forEach(part => {
+        output.set(part, offset);
+        offset += part.length;
+      });
+      return output;
+    }
+
+    function u16(value) {
+      const bytes = new Uint8Array(2);
+      new DataView(bytes.buffer).setUint16(0, value, true);
+      return bytes;
+    }
+
+    function u32(value) {
+      const bytes = new Uint8Array(4);
+      new DataView(bytes.buffer).setUint32(0, value >>> 0, true);
+      return bytes;
+    }
+
+    const CRC_TABLE = (() => {
+      const table = new Uint32Array(256);
+      for (let n = 0; n < 256; n += 1) {
+        let c = n;
+        for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        table[n] = c >>> 0;
+      }
+      return table;
+    })();
+
+    function crc32(data) {
+      let crc = 0xffffffff;
+      for (let i = 0; i < data.length; i += 1) {
+        crc = CRC_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+  </script>
+</body>
+</html>
