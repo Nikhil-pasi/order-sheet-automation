@@ -449,7 +449,11 @@
             </div>
             <div class="rule">
               <strong>Excel Output</strong>
-              <span>Bold colored header, frozen first row, adjusted column widths.</span>
+              <span>Processed Orders and Removed Orders sheets with bold headers, frozen rows, and adjusted widths.</span>
+            </div>
+            <div class="rule">
+              <strong>Removed Orders</strong>
+              <span>Excluded statuses stay in a separate sheet with a removal reason.</span>
             </div>
           </div>
         </div>
@@ -560,7 +564,10 @@
         renderPreview(result.rows);
         renderReview(result.stats.reviewSkus);
 
-        const xlsxBlob = buildXLSX(OUTPUT_HEADERS, result.rows, "Processed Orders");
+        const xlsxBlob = buildXLSX([
+          { name: "Processed Orders", headers: OUTPUT_HEADERS, rows: result.rows },
+          { name: "Removed Orders", headers: [...parsed.headers, "Removal Reason"], rows: result.removedRows }
+        ]);
         const baseName = state.file.name.replace(/\.[^.]+$/, "");
         const outputName = `${baseName}_processed_${todayISO()}.xlsx`;
         state.downloadUrl = URL.createObjectURL(xlsxBlob);
@@ -568,7 +575,7 @@
         downloadBtn.download = outputName;
         downloadBtn.hidden = false;
 
-        setMessage(`Excel ready: ${result.rows.length} final rows generated.`, "ok");
+        setMessage(`Excel ready: ${result.rows.length} final rows generated. Removed orders are in the second sheet.`, "ok");
       } catch (error) {
         console.error(error);
         setMessage(error.message || "Something went wrong while processing the file.", "error");
@@ -602,6 +609,7 @@
       const filtered = rows
         .filter(row => ["Pending", "Shipped"].includes(clean(row["order-status"])))
         .sort((a, b) => clean(b["order-status"]).localeCompare(clean(a["order-status"])));
+      const removed = rows.filter(row => !["Pending", "Shipped"].includes(clean(row["order-status"])));
 
       const today = todayISO();
       const month = monthName(new Date());
@@ -630,6 +638,10 @@
 
       return {
         rows: output,
+        removedRows: removed.map(row => [
+          ...headers.map(header => clean(row[header])),
+          `Excluded status: ${clean(row["order-status"]) || "(blank)"}`
+        ]),
         stats: {
           input: rows.length,
           final: output.length,
@@ -684,7 +696,7 @@
     function withSkuAndPrice(row, sku, price) {
       const copy = row.slice();
       copy[2] = sku;
-      copy[12] = price;
+      copy[13] = price;
       return copy;
     }
 
@@ -804,7 +816,63 @@
       return text;
     }
 
-    function buildXLSX(headers, rows, sheetName) {
+    function buildXLSX(sheets) {
+      const sheetFiles = {};
+      sheets.forEach((sheet, index) => {
+        sheetFiles[`xl/worksheets/sheet${index + 1}.xml`] = buildWorksheetXML(sheet.headers, sheet.rows);
+      });
+
+      const contentOverrides = sheets.map((sheet, index) =>
+        `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+      ).join("");
+      const workbookSheets = sheets.map((sheet, index) =>
+        `<sheet name="${escapeXML(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`
+      ).join("");
+      const workbookRelationships = sheets.map((sheet, index) =>
+        `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`
+      ).join("");
+      const stylesRelationshipId = sheets.length + 1;
+
+      const files = {
+        "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  ${contentOverrides}
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+        "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+        "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${workbookSheets}</sheets>
+</workbook>`,
+        "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${workbookRelationships}
+  <Relationship Id="rId${stylesRelationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+        "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF111827"/><name val="Calibri"/></font></fonts>
+  <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDBEAFE"/><bgColor indexed="64"/></patternFill></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" xfId="0" applyFont="1" applyFill="1"/></cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`,
+        ...sheetFiles
+      };
+
+      return new Blob([zipStore(files)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+    }
+
+    function buildWorksheetXML(headers, rows) {
       const widths = headers.map((header, index) => {
         const values = rows.map(row => clean(row[index]));
         const max = Math.max(clean(header).length || 10, ...values.map(value => value.length));
@@ -824,50 +892,12 @@
         `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`
       ).join("");
 
-      const sheetXML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft"/></sheetView></sheetViews>
   <cols>${cols}</cols>
   <sheetData>${sheetRows}</sheetData>
 </worksheet>`;
-
-      const files = {
-        "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-</Types>`,
-        "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`,
-        "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="${escapeXML(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
-</workbook>`,
-        "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`,
-        "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF111827"/><name val="Calibri"/></font></fonts>
-  <fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDBEAFE"/><bgColor indexed="64"/></patternFill></fill></fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>
-  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
-</styleSheet>`,
-        "xl/worksheets/sheet1.xml": sheetXML
-      };
-
-      return new Blob([zipStore(files)], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      });
     }
 
     function zipStore(files) {
