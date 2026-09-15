@@ -367,7 +367,7 @@
       <section class="panel">
         <div class="panel-head">
           <h2>Amazon Report To Excel</h2>
-          <p>Upload the Amazon tab-separated order report and generate the finished 21-column Excel sheet.</p>
+          <p>Upload the Amazon tab-separated order report and generate the finished 22-column Excel sheet.</p>
         </div>
         <div class="panel-body">
           <label class="upload" id="dropZone">
@@ -459,7 +459,7 @@
 
   <script>
     const REQUIRED_COLUMNS = [
-      "order-status", "purchase-date", "sku", "product-name", "ship-postal-code",
+      "order-status", "purchase-date", "sku", "product-name", "amazon-order-id", "ship-postal-code",
       "ship-city", "ship-state", "ship-country", "item-price", "quantity"
     ];
 
@@ -467,7 +467,7 @@
     const SKU_CORRECTIONS = {
       "XT-J0WB-EP74": "NESTA00114",
       "G9-R6IY-RAHH": "NESTA0055",
-      "3": "NESTA002"
+      "3": "NESTA0002"
     };
 
     const COMBOS = {
@@ -486,7 +486,7 @@
     };
 
     const OUTPUT_HEADERS = [
-      "Order Status", "Purchase Date", "SKU", "Product Name", "", "", "",
+      "Order Status", "Purchase Date", "SKU", "Product Name", "Amazon Order ID", "", "", "",
       "Ship Postal Code", "Ship City", "Ship State", "Ship Country", "",
       "Item Price", "Quantity", "", "", "", "", "", "", ""
     ];
@@ -648,6 +648,7 @@
         cleanDate(row["purchase-date"]),
         sku,
         clean(row["product-name"]),
+        clean(row["amazon-order-id"]),
         "Amazon FBA",
         "",
         "",
